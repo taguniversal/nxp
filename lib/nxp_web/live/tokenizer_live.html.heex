@@ -1,0 +1,506 @@
+<div class="mb-6 p-4 bg-gray-50 border-l-4 border-green-400 shadow-sm rounded">
+  <h1 class="text-2xl font-bold mb-2">🧠 Large Language Model Pipeline Visualizer</h1>
+  <p class="text-sm text-gray-700 mb-1">
+    This interactive visualization demonstrates the core mechanics of a Transformer-based Large Language Model (LLM). When you submit text, it goes through several processing stages inspired by modern LLM architectures:
+  </p>
+  <ul class="list-disc pl-6 text-sm text-gray-700 space-y-1 mb-2">
+    <li>
+      <strong>Tokenization:</strong> Input text is split into discrete tokens (words or subwords).
+    </li>
+    <li>
+      <strong>Embedding:</strong>
+      Each token is converted to a numeric vector representing semantic features.
+    </li>
+    <li>
+      <strong>Positional Encoding:</strong> Position information is injected into embeddings.
+    </li>
+    <li><strong>Self-Attention:</strong> Tokens attend to others based on similarity scores.</li>
+    <li>
+      <strong>Multi-Head Attention:</strong>
+      Attention is computed in multiple subspaces and aggregated.
+    </li>
+    <li>
+      <strong>Weighted Sums:</strong>
+      Attention weights are applied to value vectors, producing context-aware token representations.
+    </li>
+    <li>
+      <strong>Feed-Forward Projection:</strong>
+      Each token vector is passed through a two-layer neural network to enhance its representation.
+    </li>
+    <li>
+      <strong>Residual Connection:</strong>
+      The original input vector is added back to preserve useful signal and support learning depth.
+    </li>
+    <li>
+      <strong>Layer Normalization:</strong>
+      Each vector is normalized to stabilize learning and reduce internal covariate shift.
+    </li>
+    <li>
+      <strong>Softmax Prediction:</strong>
+      Final vectors are compared against a sample vocabulary to simulate token prediction probabilities.
+    </li>
+  </ul>
+</div>
+
+<form phx-change="tokenize" phx-submit="tokenize">
+  <textarea
+    name="input[text]"
+    rows="4"
+    class="w-full border p-2 mb-2"
+    placeholder="Enter text here..."
+  ><%= @text %></textarea>
+  <div class="flex space-x-2">
+    <button type="submit" class="bg-blue-500 text-white px-4 py-2 rounded">Tokenize</button>
+    <button type="button" phx-click="load_sample" class="bg-gray-500 text-white px-4 py-2 rounded">
+      Sample
+    </button>
+  </div>
+</form>
+
+<div class="mt-4">
+  <p><strong>Token Count:</strong> {@token_count}</p>
+
+  <div class="mt-2">
+    <h3 class="font-semibold">Tokens:</h3>
+    <ul class="grid grid-cols-2 gap-2 mt-2 text-sm">
+      <%= for {token, i} <- @tokens do %>
+        <li>
+          <span class="inline-block px-2 py-1 bg-gray-200 rounded">
+            [{i}] {token}
+          </span>
+        </li>
+      <% end %>
+    </ul>
+  </div>
+</div>
+
+<div class="mt-6">
+  <h3 class="font-semibold mb-2">🧬 Positional Embedding Simulation</h3>
+  <div class="space-y-4">
+    <%= for row <- @embeddings do %>
+      <div class="border p-2 rounded bg-gray-50">
+        <p>
+          <strong><code>{row.token}</code></strong> (position {row.position})
+        </p>
+
+        <p class="text-xs text-gray-600 mt-1">
+          Raw Embedding: <code>[{Enum.join(row.embedding, ", ")}]</code>
+        </p>
+
+        <p class="text-xs text-blue-600">
+          Positional Encoding: <code>[{Enum.join(row.pos_encoding, ", ")}]</code>
+        </p>
+
+        <p class="text-xs text-green-700">
+          Combined Vector: <code>[{Enum.join(row.combined, ", ")}]</code>
+        </p>
+      </div>
+    <% end %>
+  </div>
+</div>
+
+<div class="mt-10 mb-4">
+  <h3 class="text-lg font-semibold">🧠 Multi-Head Self-Attention</h3>
+  <p class="text-sm text-gray-700">
+    In this stage, each token dynamically attends to every other token in the sequence using similarity-based weighting.
+    This is visualized as a <strong>heatmap</strong>
+    where each row shows how much a specific token "looks at" others to gather context.
+  </p>
+  <ul class="list-disc text-sm text-gray-700 pl-6 mt-2 space-y-1">
+    <li>
+      <strong>Self-Attention:</strong> Calculates how related each token is to every other token.
+    </li>
+    <li>
+      <strong>Multi-Headed:</strong>
+      Runs this attention process in parallel across multiple subspaces ("heads"), each learning a different pattern.
+    </li>
+    <li>
+      <strong>Heatmap:</strong>
+      Darker cells represent stronger attention weights, indicating stronger influence.
+    </li>
+  </ul>
+  <p class="text-sm text-gray-700 mt-2">
+    By examining different heads, we can observe how the model learns to focus on syntax, relationships, and deeper semantics across multiple perspectives.
+  </p>
+</div>
+
+<div class="flex space-x-2 mb-4">
+  <%= for idx <- 0..(@num_heads - 1) do %>
+    <button
+      phx-click="change_head"
+      phx-value-head={idx}
+      class={"px-3 py-1 border rounded text-sm " <>
+        if @selected_head == idx, do: "bg-green-500 text-white", else: "bg-gray-100 text-gray-800"}
+    >
+      Head {idx}
+    </button>
+  <% end %>
+</div>
+
+<div class="mt-10">
+  <h3 class="font-semibold mb-2">
+    🔍 Self-Attention HeatMap (Head {@selected_head})
+  </h3>
+  <p class="text-sm text-gray-500 mb-2">Each row shows how much a token attends to others</p>
+
+  <table class="table-auto border-collapse">
+    <thead>
+      <tr>
+        <th class="px-2 py-1 border"></th>
+        <%= for {tok, _} <- @tokens do %>
+          <th class="px-2 py-1 border text-xs">{tok}</th>
+        <% end %>
+      </tr>
+    </thead>
+    <tbody>
+      <% selected_attention = Enum.at(@attention_heads || [], @selected_head) || [] %>
+      <%= for {row, i} <- Enum.with_index(selected_attention) do %>
+        <tr>
+          <td class="px-2 py-1 border text-xs bg-gray-100">
+            {elem(Enum.at(@tokens, i), 0)}
+          </td>
+          <%= for val <- row do %>
+            <td
+              class="px-2 py-1 border text-center text-xs"
+              style={"background-color: rgba(34,197,94,#{val})"}
+            >
+              {val}
+            </td>
+          <% end %>
+        </tr>
+      <% end %>
+    </tbody>
+  </table>
+</div>
+
+<div class="mt-10 mb-4">
+  <h3 class="text-lg font-semibold">📊 Weighted Sums of Value Vectors</h3>
+  <p class="text-sm text-gray-700">
+    After computing attention scores for each token pair, we use those scores to blend information from all tokens together.
+    This produces a new vector for each token that captures its context within the full sentence.
+  </p>
+  <ul class="list-disc text-sm text-gray-700 pl-6 mt-2 space-y-1">
+    <li>
+      <strong>Value Vectors:</strong>
+      Each token has a "value" vector — its content representation.
+    </li>
+    <li>
+      <strong>Weighted Sum:</strong>
+      Attention weights are used to compute a weighted average of all value vectors for each token.
+    </li>
+    <li>
+      <strong>Contextual Output:</strong>
+      The result is a new vector that reflects what each token "learned" from the others.
+    </li>
+  </ul>
+  <p class="text-sm text-gray-700 mt-2">
+    This is how the model builds rich, context-aware token representations — a core strength of Transformer-based architectures.
+  </p>
+</div>
+
+<div class="mt-10">
+  <h3 class="font-semibold mb-2">🧮 Output: Weighted Sums (Head {@selected_head})</h3>
+
+  <% selected_weighted = Enum.at(@weighted_heads || [], @selected_head) || [] %>
+
+  <table class="table-auto border-collapse mt-2">
+    <thead>
+      <tr>
+        <th class="px-2 py-1 border text-xs">Token</th>
+        <%= for i <- 0..3 do %>
+          <th class="px-2 py-1 border text-xs">d{i}</th>
+        <% end %>
+      </tr>
+    </thead>
+    <tbody>
+      <%= for {{token, _}, vec} <- Enum.zip(@tokens, selected_weighted) do %>
+        <tr>
+          <td class="px-2 py-1 border text-xs bg-gray-100">{token}</td>
+          <%= for val <- vec do %>
+            <td class="px-2 py-1 border text-xs text-right">{val}</td>
+          <% end %>
+        </tr>
+      <% end %>
+    </tbody>
+  </table>
+</div>
+
+<div class="mt-10 mb-4">
+  <h3 class="text-lg font-semibold">🧬 Feed-Forward Projection</h3>
+  <p class="text-sm text-gray-700">
+    After each token is enriched with context through self-attention, we apply a
+    <strong>position-wise feed-forward network</strong>
+    to further transform its vector. This simulates deeper reasoning by letting each token representation pass through a two-layer neural network:
+  </p>
+  <ul class="list-disc text-sm text-gray-700 pl-6 mt-2 space-y-1">
+    <li>
+      <strong>Layer 1:</strong>
+      Projects the token vector to a higher-dimensional space and applies a ReLU activation.
+    </li>
+    <li>
+      <strong>Layer 2:</strong>
+      Compresses the result back to the original dimensionality, producing a richer representation.
+    </li>
+  </ul>
+  <p class="text-sm text-gray-700 mt-2">
+    This transformation is applied independently to each token, enabling the model to learn complex representations beyond linear relationships.
+  </p>
+</div>
+
+<div class="mt-10 mb-4">
+  <h3 class="text-lg font-semibold">⚙️ ReLU Activation Function</h3>
+  <p class="text-sm text-gray-700">
+    Between the two dense layers in the feed-forward projection, we apply a special transformation called <strong>ReLU (Rectified Linear Unit)</strong>. This activation function introduces non-linearity into the model,
+    which allows it to learn complex patterns beyond simple arithmetic.
+  </p>
+  <ul class="list-disc text-sm text-gray-700 pl-6 mt-2 space-y-1">
+    <li><strong>Definition:</strong> ReLU(x) = max(0, x)</li>
+    <li>
+      <strong>Effect:</strong>
+      It sets all negative values to zero, leaving positive values unchanged.
+    </li>
+    <li>
+      <strong>Purpose:</strong>
+      It prevents negative signals from flowing through the network and helps the model focus on useful features.
+    </li>
+  </ul>
+  <p class="text-sm text-gray-700 mt-2">
+    ReLU is fast, simple, and effective — making it one of the most widely used activation functions in deep learning.
+  </p>
+</div>
+
+<div class="mt-10">
+  <h3 class="font-semibold mb-2">🧬 Feed-Forward Projection (Head {@selected_head})</h3>
+
+  <% projected = Enum.at(@projected_heads || [], @selected_head) || [] %>
+
+  <table class="table-auto border-collapse mt-2">
+    <thead>
+      <tr>
+        <th class="px-2 py-1 border text-xs">Token</th>
+        <%= for i <- 0..3 do %>
+          <th class="px-2 py-1 border text-xs">p{i}</th>
+        <% end %>
+      </tr>
+    </thead>
+    <tbody>
+      <%= for {{token, _}, vec} <- Enum.zip(@tokens, projected) do %>
+        <tr>
+          <td class="px-2 py-1 border text-xs bg-gray-100">{token}</td>
+          <%= for val <- vec do %>
+            <td class="px-2 py-1 border text-xs text-right">{val}</td>
+          <% end %>
+        </tr>
+      <% end %>
+    </tbody>
+  </table>
+</div>
+
+<div class="mt-10 mb-4">
+  <h3 class="text-lg font-semibold">➕ Residual Connection</h3>
+  <p class="text-sm text-gray-700">
+    Before normalizing the output, we apply a <strong>residual connection</strong>
+    — a simple yet powerful idea where the original input vector is added back to the feed-forward output.
+    This helps the model retain important information from earlier layers and allows gradients to flow more effectively during training.
+  </p>
+  <ul class="list-disc text-sm text-gray-700 pl-6 mt-2 space-y-1">
+    <li>
+      <strong>Preserves identity:</strong>
+      Ensures the network can reuse or bypass earlier representations if needed.
+    </li>
+    <li><strong>Improves stability:</strong> Makes deep networks easier to train.</li>
+  </ul>
+  <p class="text-sm text-gray-700 mt-2">
+    The resulting vector combines both the original input and the transformed output, forming a stronger foundation for the next normalization step.
+  </p>
+</div>
+
+<div class="mt-10 mb-4">
+  <h3 class="text-lg font-semibold">➕ Residual Connection (Head {@selected_head})</h3>
+  <p class="text-sm text-gray-700 mb-2">
+    The original token vector is added back to the feed-forward output to preserve important input features.
+  </p>
+
+  <% residuals = Enum.at(@residual_heads || [], @selected_head) || [] %>
+
+  <table class="table-auto border-collapse">
+    <thead>
+      <tr>
+        <th class="px-2 py-1 border text-xs">Token</th>
+        <%= for i <- 0..3 do %>
+          <th class="px-2 py-1 border text-xs">r{i}</th>
+        <% end %>
+      </tr>
+    </thead>
+    <tbody>
+      <%= for {{token, _}, vec} <- Enum.zip(@tokens, residuals) do %>
+        <tr>
+          <td class="px-2 py-1 border text-xs bg-gray-100">{token}</td>
+          <%= for val <- vec do %>
+            <td class="px-2 py-1 border text-xs text-right">{val}</td>
+          <% end %>
+        </tr>
+      <% end %>
+    </tbody>
+  </table>
+</div>
+
+<div class="mt-10 mb-4">
+  <h3 class="text-lg font-semibold">🧪 Layer Normalization</h3>
+  <p class="text-sm text-gray-700">
+    After the residual connection, we apply <strong>layer normalization</strong>
+    to stabilize and scale the resulting vector.
+    This helps the model handle varying inputs more consistently across tokens and layers.
+  </p>
+  <ul class="list-disc text-sm text-gray-700 pl-6 mt-2 space-y-1">
+    <li><strong>Zero mean:</strong> The values in each token vector are centered around 0.</li>
+    <li><strong>Unit variance:</strong> The spread of values is normalized for consistency.</li>
+    <li>
+      <strong>Per-token:</strong> Each token is normalized independently, preserving structure.
+    </li>
+  </ul>
+  <p class="text-sm text-gray-700 mt-2">
+    This step improves training performance and helps each token representation flow smoothly into the final prediction stage.
+  </p>
+</div>
+
+<div class="mt-10 mb-4">
+  <h3 class="text-lg font-semibold">🧪 Layer Normalization (Head {@selected_head})</h3>
+  <p class="text-sm text-gray-700 mb-2">
+    This step normalizes each token’s vector to have zero mean and unit variance, improving model stability.
+  </p>
+
+  <% normed = Enum.at(@normalized_heads || [], @selected_head) || [] %>
+
+  <table class="table-auto border-collapse">
+    <thead>
+      <tr>
+        <th class="px-2 py-1 border text-xs">Token</th>
+        <%= for i <- 0..3 do %>
+          <th class="px-2 py-1 border text-xs">n{i}</th>
+        <% end %>
+      </tr>
+    </thead>
+    <tbody>
+      <%= for {{token, _}, vec} <- Enum.zip(@tokens, normed) do %>
+        <tr>
+          <td class="px-2 py-1 border text-xs bg-gray-100">{token}</td>
+          <%= for val <- vec do %>
+            <td class="px-2 py-1 border text-xs text-right">{val}</td>
+          <% end %>
+        </tr>
+      <% end %>
+    </tbody>
+  </table>
+</div>
+
+<div class="mt-10 mb-4">
+  <h3 class="text-lg font-semibold">🎯 Softmax Token Predictions (Head {@selected_head})</h3>
+  <p class="text-sm text-gray-700 mb-2">
+    The final normalized vectors are compared against a small vocabulary to simulate a prediction distribution.
+    Each value represents the probability of the model selecting that word for a given token position.
+  </p>
+
+  <% softmax = Enum.at(@softmax_heads || [], @selected_head) || [] %>
+
+  <table class="table-auto border-collapse mt-2">
+    <thead>
+      <tr>
+        <th class="px-2 py-1 border text-xs">Token</th>
+        <%= for word <- ["the", "a", "is", "of", "to", "and", "you", "are"] do %>
+          <th class="px-2 py-1 border text-xs text-center">{word}</th>
+        <% end %>
+      </tr>
+    </thead>
+    <tbody>
+      <%= for {{token, _}, probs} <- Enum.zip(@tokens, softmax) do %>
+        <tr>
+          <td class="px-2 py-1 border text-xs bg-gray-100">{token}</td>
+          <%= for prob <- probs do %>
+            <td
+              class="px-2 py-1 border text-xs text-center"
+              style={"background-color: rgba(34,197,94,#{prob})"}
+            >
+              {Float.round(prob, 2)}
+            </td>
+          <% end %>
+        </tr>
+      <% end %>
+    </tbody>
+  </table>
+</div>
+
+<div class="mt-10 mb-4">
+  <h3 class="text-lg font-semibold">🔮 Final Token Predictions (Head {@selected_head})</h3>
+  <p class="text-sm text-gray-700 mb-2">
+    Based on the output vector for each token, the model predicts the most likely next token from the vocabulary.
+  </p>
+
+  <% preds = Enum.at(@predictions || [], @selected_head) || [] %>
+
+  <table class="table-auto border-collapse mt-2">
+    <thead>
+      <tr>
+        <th class="px-2 py-1 border text-xs">Input Token</th>
+        <th class="px-2 py-1 border text-xs">Predicted Token</th>
+        <th class="px-2 py-1 border text-xs">Confidence</th>
+      </tr>
+    </thead>
+    <tbody>
+      <%= for {{token, _}, %{token: pred, confidence: conf}} <- Enum.zip(@tokens, preds) do %>
+        <tr>
+          <td class="px-2 py-1 border text-xs bg-gray-100">{token}</td>
+          <td class="px-2 py-1 border text-xs text-green-700 font-semibold">{pred}</td>
+          <td class="px-2 py-1 border text-xs text-right">{conf}</td>
+        </tr>
+      <% end %>
+    </tbody>
+  </table>
+</div>
+
+<div class="mt-10 mb-4">
+  <h3 class="text-lg font-semibold">
+    🧠 Reconstructed Prediction Sequence (Head {@selected_head})
+  </h3>
+  <p class="text-sm text-gray-700 mb-2">
+    Below, each original token is shown along with the model’s top predicted token underneath.
+    High-confidence predictions are highlighted in green.
+  </p>
+
+  <% preds = Enum.at(@predictions || [], @selected_head) || [] %>
+
+  <div class="flex flex-wrap gap-4 mt-4">
+    <%= for {{token, _}, %{token: pred, confidence: conf}} <- Enum.zip(@tokens, preds) do %>
+      <div class="text-center">
+        <div class="text-sm font-semibold text-gray-800 mb-1">{token}</div>
+        <div
+          class="text-xs px-2 py-1 rounded"
+          style={"background-color: rgba(34,197,94,#{conf}); color: #{if conf > 0.5, do: "white", else: "black"};"}
+        >
+          {pred} ({Float.round(conf, 2)})
+        </div>
+      </div>
+    <% end %>
+  </div>
+</div>
+🧠 Autoregressive Generated Tokens
+<h3 class="text-lg font-bold mb-2">Original Input</h3>
+<div class="text-base font-mono bg-gray-100 p-2 rounded mb-4">
+  <%= for {token, _i} <- @tokens do %>
+    {token}
+  <% end %>
+</div>
+
+<button
+  type="button"
+  phx-click="generate"
+  class="ml-2 bg-purple-600 hover:bg-purple-700 text-white text-sm font-semibold py-2 px-4 rounded shadow"
+>
+  🔮 Generate Next Tokens
+</button>
+<h3 class="text-lg font-bold mb-2 text-purple-600">Autoregressive Generated Tokens</h3>
+<div class="text-xl font-mono bg-purple-50 p-4 rounded">
+  <%= for {token, _i} <- @generated_tokens || [] do %>
+    {token}
+  <% end %>
+</div>
