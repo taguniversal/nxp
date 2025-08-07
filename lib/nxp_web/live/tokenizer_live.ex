@@ -239,27 +239,28 @@ defmodule NxpWeb.TokenizerLive do
      )}
   end
 
+  defp extract_token(entry) when is_binary(entry), do: entry
+  defp extract_token({token, _}), do: token
+
   defp generate_tokens(socket) do
     initial_tokens = socket.assigns.tokens |> Enum.map(fn {tok, _i} -> tok end)
 
-    # Only use previously generated tokens if they exist
     context =
       case socket.assigns.generated_tokens do
         nil -> initial_tokens
         [] -> initial_tokens
-        prior -> Enum.map(prior, fn {tok, _i} -> tok end)
+        prior -> Enum.map(prior, &extract_token/1)
       end
 
     new_tokens = do_generate(context, 10)
 
     updated =
       new_tokens
-      |> Enum.drop(length(context)) # 🧠 Only the newly generated ones
-      |> Enum.with_index()
+      |> Enum.drop(length(context))
+      |> Enum.with_index(length(context))
 
     assign(socket, :generated_tokens, context ++ updated)
   end
-
   def handle_event("generate", _params, socket) do
     {:noreply, generate_tokens(socket)}
   end
@@ -422,6 +423,7 @@ defp sample_from_distribution(pairs) do
     end
   end)
 end
+
 
 
 end
