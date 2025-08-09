@@ -19,6 +19,8 @@ defmodule NxpWeb.Router do
 
     get "/", PageController, :home
     live "/tokenizer", TokenizerLive
+    live "/neural", NeuralLive
+
   end
 
   # Other scopes may use custom stacks.
