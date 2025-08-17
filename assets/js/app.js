@@ -23,8 +23,11 @@ import {LiveSocket} from "phoenix_live_view"
 import topbar from "../vendor/topbar"
 
 import mermaid from "mermaid";
+import TPUHook from "./hooks/TPUHook";
 
 let Hooks = {};
+Hooks.TPUHook = TPUHook;
+
 // In your assets/js/app.js file
 Hooks.Mermaid = {
   mounted() {

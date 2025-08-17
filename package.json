@@ -1,5 +1,6 @@
 {
   "dependencies": {
-    "mermaid": "^11.9.0"
+    "mermaid": "^11.9.0",
+    "onnxruntime-web": "^1.22.0"
   }
 }

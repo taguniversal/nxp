@@ -1,0 +1,65 @@
+ <div id="tpu-visualization" phx-hook="TPUHook" class="w-full h-[600px] bg-white border p-4 rounded shadow"></div>
+
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+
+    <script>
+      let Hooks = {};
+
+      Hooks.TPUHook = {
+        mounted() {
+          const width = 800;
+          const height = 600;
+
+          const svg = d3.select("#tpu-visualization")
+            .append("svg")
+            .attr("width", width)
+            .attr("height", height);
+
+          // Draw MXU Grid (simplified 10x10 grid)
+          const gridSize = 40;
+          const rows = 10;
+          const cols = 10;
+
+          for (let i = 0; i < rows; i++) {
+            for (let j = 0; j < cols; j++) {
+              svg.append("rect")
+                .attr("x", j * gridSize + 50)
+                .attr("y", i * gridSize + 50)
+                .attr("width", gridSize - 4)
+                .attr("height", gridSize - 4)
+                .attr("fill", "#4f46e5")
+                .attr("stroke", "#000")
+                .attr("stroke-width", 1);
+
+              svg.append("text")
+                .attr("x", j * gridSize + 60)
+                .attr("y", i * gridSize + 70)
+                .attr("font-size", "10px")
+                .attr("fill", "#fff")
+                .text("MAC");
+            }
+          }
+
+          // Label sections
+          svg.append("text")
+            .attr("x", 50)
+            .attr("y", 30)
+            .attr("font-size", "20px")
+            .text("TPU MXU (10×10 MAC grid)");
+
+          svg.append("text")
+            .attr("x", 600)
+            .attr("y", 100)
+            .attr("font-size", "14px")
+            .text("Weights ↓");
+
+          svg.append("text")
+            .attr("x", 100)
+            .attr("y", 540)
+            .attr("font-size", "14px")
+            .text("Activations →");
+        }
+      };
+
+      window.Hooks = Hooks;
+    </script>

@@ -20,6 +20,7 @@ defmodule NxpWeb.Router do
     get "/", PageController, :home
     live "/tokenizer", TokenizerLive
     live "/neural", NeuralLive
+    live "/tpu", TPULive
 
   end
 
