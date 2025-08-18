@@ -24,9 +24,10 @@ import topbar from "../vendor/topbar"
 
 import mermaid from "mermaid";
 import TPUHook from "./hooks/TPUHook";
-
+import TopologyHook from "./hooks/TopologyHook";
 let Hooks = {};
 Hooks.TPUHook = TPUHook;
+Hooks.TopologyHook = TopologyHook;
 
 // In your assets/js/app.js file
 Hooks.Mermaid = {

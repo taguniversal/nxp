@@ -1,5 +1,11 @@
 import * as d3 from "d3";
 let TPUHook = {
+    updated() {
+        d3.select(this.el).select("svg").remove();
+        this.mounted(); // re-run animation
+      },
+      
+      
     mounted() {
       const gridSize = 6;
       const cellSize = 50;

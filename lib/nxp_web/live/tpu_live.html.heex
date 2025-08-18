@@ -1,65 +1,162 @@
- <div id="tpu-visualization" phx-hook="TPUHook" class="w-full h-[600px] bg-white border p-4 rounded shadow"></div>
+<table class="w-full table-fixed">
+  <tr>
+    <td class="w-1/2 align-top p-4">
+      <div
+        id="tpu-visualization"
+        phx-hook="TPUHook"
+        class="w-full h-[600px] bg-white border p-4 rounded shadow"
+      >
+      </div>
+    </td>
+    <td class="w-1/2 align-top p-4">
+      <h2 class="text-xl font-bold mb-2">🧮 What You're Seeing</h2>
+      <p class="mb-4">
+        This animation shows a <strong>Google TPU Matrix Multiply Unit (MXU)</strong>
+        in action. The grid of cells represents <strong>MAC (Multiply-Accumulate)</strong>
+        units processing a matrix operation.
+      </p>
+      <ul class="list-disc list-inside space-y-2">
+        <li>
+          <strong>Left-to-right arrows</strong> represent input activations streaming into rows.
+        </li>
+        <li><strong>Top-down arrows</strong> represent weights entering columns.</li>
+        <li>
+          The <strong>diagonal wave</strong>
+          shows the systolic rhythm of computation as each MAC receives and processes data.
+        </li>
+        <li>
+          This mimics real TPU behavior where data flows through the grid in lockstep, enabling massive parallelism and efficiency.
+        </li>
+      </ul>
+      <h3 class="text-lg font-semibold mt-6 mb-2">📘 Understanding Activations & Weights</h3>
+      <p class="mb-2">
+        In the context of neural networks and TPUs, <strong>input activations</strong>
+        refer to the numerical values coming from the previous layer of the model—essentially, the "signals" being fed forward. These activations represent the current state of the input data as it flows through the network.
+      </p>
+      <p class="mb-2">
+        <strong>Weights</strong>, on the other hand, are the learned parameters that determine how much influence each activation has on the output. During matrix multiplication, each activation value is multiplied by a corresponding weight, and the results are accumulated in the MAC (Multiply-Accumulate) units.
+      </p>
+      <p>
+        The entire process is highly parallel and efficient on a TPU, with data flowing like a wave across the grid—activations moving across rows, and weights moving down columns, meeting in the middle to compute outputs.
+      </p>
+    </td>
+  </tr>
+</table>
 
-    <script src="https://d3js.org/d3.v7.min.js"></script>
+<div class="grid grid-cols-2 gap-6 p-6">
+  <!-- Visualization Area -->
+  <div>
+    <div
+      id="topology-visualizer"
+      phx-hook="TopologyHook"
+      data-topology={@topology}
+      class="w-full h-[500px] bg-white border shadow rounded p-4"
+    >
+    </div>
+  </div>
 
-    <script>
-      let Hooks = {};
+<!-- Topology Info -->
+  <div class="space-y-4">
+    <h2 class="text-xl font-bold">Micromirror Topology Switcher</h2>
 
-      Hooks.TPUHook = {
-        mounted() {
-          const width = 800;
-          const height = 600;
+    <p>
+      Select a routing topology to see how light paths can be dynamically reconfigured using micromirrors.
+    </p>
 
-          const svg = d3.select("#tpu-visualization")
-            .append("svg")
-            .attr("width", width)
-            .attr("height", height);
+    <div class="space-x-2">
+      <button phx-click="select_topology" phx-value-topology="mesh" class="btn">Mesh</button>
+      <button phx-click="select_topology" phx-value-topology="ring" class="btn">Ring</button>
+      <button phx-click="select_topology" phx-value-topology="bus" class="btn">Bus</button>
+      <button phx-click="select_topology" phx-value-topology="tree" class="btn">Tree</button>
+      <button phx-click="select_topology" phx-value-topology="crossbar" class="btn">
+        Crossbar
+      </button>
+    </div>
 
-          // Draw MXU Grid (simplified 10x10 grid)
-          const gridSize = 40;
-          const rows = 10;
-          const cols = 10;
+    <div class="bg-gray-50 p-4 rounded shadow">
+      <h3 class="font-semibold">Current Topology: {@topology}</h3>
+      <p class="text-sm mt-2">
+        <%= case @topology do %>
+          <% "mesh" -> %>
+            2D grid-like layout where each node connects to its neighbors. Efficient for TPU matrix operations.
+          <% "torus" -> %>
+            A wrapped mesh topology forming a loop — efficient for continuous data flow.
+          <% "tree" -> %>
+            Hierarchical structure used for reduction and broadcasting.
+          <% _ -> %>
+            Select a topology to learn more.
+        <% end %>
+      </p>
+    </div>
+  </div>
+</div>
 
-          for (let i = 0; i < rows; i++) {
-            for (let j = 0; j < cols; j++) {
-              svg.append("rect")
-                .attr("x", j * gridSize + 50)
-                .attr("y", i * gridSize + 50)
-                .attr("width", gridSize - 4)
-                .attr("height", gridSize - 4)
-                .attr("fill", "#4f46e5")
-                .attr("stroke", "#000")
-                .attr("stroke-width", 1);
+<script src="https://d3js.org/d3.v7.min.js">
+</script>
 
-              svg.append("text")
-                .attr("x", j * gridSize + 60)
-                .attr("y", i * gridSize + 70)
-                .attr("font-size", "10px")
-                .attr("fill", "#fff")
-                .text("MAC");
-            }
-          }
+<script>
+  window.Hooks = window.Hooks || {};
 
-          // Label sections
+  window.Hooks.TPUHook = {
+    mounted() {
+      const width = 800;
+      const height = 600;
+
+      const svg = d3.select("#tpu-visualization")
+        .append("svg")
+        .attr("width", width)
+        .attr("height", height);
+
+      const gridSize = 40;
+      const rows = 10;
+      const cols = 10;
+
+      for (let i = 0; i < rows; i++) {
+        for (let j = 0; j < cols; j++) {
+          svg.append("rect")
+            .attr("x", j * gridSize + 50)
+            .attr("y", i * gridSize + 50)
+            .attr("width", gridSize - 4)
+            .attr("height", gridSize - 4)
+            .attr("fill", "#4f46e5")
+            .attr("stroke", "#000")
+            .attr("stroke-width", 1);
+
           svg.append("text")
-            .attr("x", 50)
-            .attr("y", 30)
-            .attr("font-size", "20px")
-            .text("TPU MXU (10×10 MAC grid)");
-
-          svg.append("text")
-            .attr("x", 600)
-            .attr("y", 100)
-            .attr("font-size", "14px")
-            .text("Weights ↓");
-
-          svg.append("text")
-            .attr("x", 100)
-            .attr("y", 540)
-            .attr("font-size", "14px")
-            .text("Activations →");
+            .attr("x", j * gridSize + 60)
+            .attr("y", i * gridSize + 70)
+            .attr("font-size", "10px")
+            .attr("fill", "#fff")
+            .text("MAC");
         }
-      };
+      }
 
-      window.Hooks = Hooks;
-    </script>
+      svg.append("text")
+        .attr("x", 50)
+        .attr("y", 30)
+        .attr("font-size", "20px")
+        .text("TPU MXU (10×10 MAC grid)");
+
+      svg.append("text")
+        .attr("x", 600)
+        .attr("y", 100)
+        .attr("font-size", "14px")
+        .text("Weights ↓");
+
+      svg.append("text")
+        .attr("x", 100)
+        .attr("y", 540)
+        .attr("font-size", "14px")
+        .text("Activations →");
+    }
+  };
+
+  window.Hooks.TopologyHook = {
+    mounted() {
+      this.handleEvent("topology_changed", ({ topology }) => {
+        console.log("Topology updated:", topology);
+        // Insert D3 update logic for the topology view here
+      });
+    }
+  };
+</script>

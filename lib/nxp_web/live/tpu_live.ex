@@ -3,7 +3,12 @@ defmodule NxpWeb.TPULive do
 
   @impl true
   def mount(_params, _session, socket) do
-    {:ok, socket}
+    {:ok, assign(socket, :topology, "mesh")}
+  end
+
+  @impl true
+  def handle_event("select_topology", %{"topology" => topology}, socket) do
+    {:noreply, assign(socket, :topology, topology)}
   end
 
 end
