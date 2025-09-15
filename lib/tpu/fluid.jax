@@ -1,0 +1,33 @@
+import jax
+import jax.numpy as jnp
+
+# Grid of H x W cells, each with 6 direction bits
+def init_grid(H, W):
+    return jnp.zeros((H, W, 6), dtype=jnp.bool_)
+
+# Define direction vectors for hex grid (approximate)
+DIRECTIONS = [
+    (-1, 0),  # up
+    (-1, 1),  # up-right
+    (0, 1),   # right
+    (1, 0),   # down
+    (1, -1),  # down-left
+    (0, -1)   # left
+]
+
+def move_particles(grid):
+    def shift_channel(chan, dy, dx):
+        return jnp.roll(jnp.roll(grid[:, :, chan], dy, axis=0), dx, axis=1)
+
+    moved = jnp.stack([
+        shift_channel(i, *DIRECTIONS[i]) for i in range(6)
+    ], axis=-1)
+    return moved
+
+@jax.jit
+def update(grid):
+    moved = move_particles(grid)
+    collided = apply_collision_rules(moved)
+    return collided
+
+# You’d define apply_collision_rules() based on your chosen lattice gas rules

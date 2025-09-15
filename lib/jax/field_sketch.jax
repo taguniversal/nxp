@@ -1,0 +1,22 @@
+# grid: [B, C, X, Y, Z] uint8/int8
+# channels: 0=occ, 1=species, 2=charge, 3..8=bond bits, 9..=fields
+
+# 1) neighbor counts by species via depthwise convs
+neighbor_counts = conv3d_onehot_species(grid[:,1:2,...], kernels_by_direction)  # or pre-onehot species
+
+# 2) free valence per cell (lookup by species)
+free_val = max_valence[grid[:,1,...]] - current_bonds(grid)
+
+# 3) propose bond changes from local summary (vectorized)
+summary = pack_features(neighbor_counts, free_val, grid[:,2,...], fields=grid[:,9:,...])
+idx = encode_index(summary)               # small integer code
+next_local = LUT[idx]                     # uint8 packed next-state code
+
+# 4) resolve pairwise conflicts deterministically
+next_local = resolve_bond_conflicts(next_local, hash_coords())
+
+# 5) field update (diffusion/relax)
+fields_next = diffuse(grid[:,9:,...])
+
+# 6) write back: new channels
+grid_next = assemble(next_local, fields_next)

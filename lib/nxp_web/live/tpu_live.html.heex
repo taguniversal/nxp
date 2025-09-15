@@ -71,6 +71,7 @@
       <button phx-click="select_topology" phx-value-topology="crossbar" class="btn">
         Crossbar
       </button>
+      <button phx-click="select_topology" phx-value-topology="torus" class="btn">Torus</button>
     </div>
 
     <div class="bg-gray-50 p-4 rounded shadow">
@@ -80,9 +81,15 @@
           <% "mesh" -> %>
             2D grid-like layout where each node connects to its neighbors. Efficient for TPU matrix operations.
           <% "torus" -> %>
-            A wrapped mesh topology forming a loop — efficient for continuous data flow.
+            A wrapped mesh topology forming a loop — efficient for continuous data flow with no edge boundaries.
+          <% "ring" -> %>
+            Nodes are connected in a closed loop. Data flows in one or both directions around the ring.
+          <% "bus" -> %>
+            All nodes share a common communication line. Simple but can become a bottleneck under load.
           <% "tree" -> %>
-            Hierarchical structure used for reduction and broadcasting.
+            Hierarchical structure with parent-child relationships. Useful for broadcasting and reduction operations.
+          <% "crossbar" -> %>
+            Fully connected switching fabric. Any node can communicate directly with any other node — very flexible but costly.
           <% _ -> %>
             Select a topology to learn more.
         <% end %>
